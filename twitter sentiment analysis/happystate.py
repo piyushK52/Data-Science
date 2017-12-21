@@ -1,89 +1,65 @@
-# -*- coding: utf-8 -*-
 import sys
 import json
 import string
-from collections import defaultdict
 
-def construct_dict(sentiment_score_file):
-    senti_file = open(sentiment_score_file)
-    scores = {} # initialize an empty dictionary
-    for line in senti_file:
-      term, score  = line.split("\t")  # The file is tab-delimited. "\t" means "tab character"
-      scores[term] = int(score)  # Convert the score to an integer.	
-    return scores
-
-def norm_word(word):
+def nword(word):
     exclude = set(string.punctuation)
     word = ''.join(ch for ch in word.lower() if ch not in exclude)
     return word
 
-def get_senti(senti_dict,line):
-	senti_score = 0
-	for word in line.split(' '):
-		if word in senti_dict:
-			senti_score += senti_dict[word]
-	return senti_score
+def senti_val(senti_dict,line):
+    score = 0
+    for word in line.split(' '):
+        if word in senti_dict:
+            score += senti_dict[word]
+    return score
 
 def geo_info(tweet):
-	try:
-
-		if tweet['place']['country_code'] == 'US':
-			state = tweet['place']['full_name'][-2:]
-			#print state
-			return True,state
-		else:
-			return False,''
-	except:
-		pass
-	return False,''
+    if all(k in tweet.keys() for k in ("text","id","place")):
+        if tweet['place'] is not None and "country_code" in tweet['place'].keys():
+            if tweet['place']['country_code'] == 'US':
+                state = tweet['place']['full_name'][-2:]
+                return True,state
+            else:
+                return False,''
+        return False,''
 
 
 def main():
+    
     senti_file = open(sys.argv[1])
     senti_dict = {} 
     for line in senti_file:
         term, score  = line.split("\t")  
         senti_dict[term] = int(score)  
     tweet_file = open(sys.argv[2])
-    state_happy_index = defaultdict()
+    state_happy_index = {}
     total_tweet_count = 0
 
     for line in tweet_file:
-		d = json.loads(line.encode('utf8'))
-		try:
-			if d['lang'] == 'en': #accept only english tweets
-				if 'text' in d.keys(): #if there is a text field
-					norm_tweet = norm_word(d['text'].encode('utf8'))
-					is_US,state = geo_info(d)
-					if is_US: #only if tweet is from the US
-						total_tweet_count += 1
-						senti_score = get_senti(senti_dict,norm_tweet)
-						if state in state_happy_index:
-							state_happy_index[state] += senti_score
-						else:
-							state_happy_index[state] = senti_score
-		except:
-			pass
+        d = json.loads(line.encode('utf8'))
+        if 'text' in d.keys(): 
+            tweet = nword(d['text'].encode('utf8'))
+            #print "type of flag",type(flag)
+            #print "type of state",type(state)
+            flag,state = geo_info(d)
+            if flag:
+                total_tweet_count += 1
+                score = senti_val(senti_dict,tweet)
+                if state in state_happy_index:
+                    state_happy_index[state] += score
+                else:
+                    state_happy_index[state] = score
+    
+    happiest_state = 'NULL'
+    happy_score = -1
 
-	happiest_state = 'XX'
-	happy_score = -1
-	saddest_state = 'YY'
-	sad_score = 99999
-
-	for state,score in state_happy_index.items():
-		if score > happy_score:
-			happy_score = score
-			happiest_state = state
-		if score < saddest_state:
-			saddest_state = state
-			sad_score = score
-	print happiest_state
-
-	#print happiest_state,happy_score/float(total_tweet_count)
-	#print saddest_state,sad_score/total_tweet_count
-
-
-
+    for state in state_happy_index.keys():
+        if state_happy_index[state] > happy_score:
+            happy_score = state_happy_index[state]
+            happiest_state = state
+            
+    print happiest_state
 
 if __name__ == '__main__':
     main()
