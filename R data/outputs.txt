@@ -1,0 +1,11 @@
+1)
+output (part of it):
+pop       
+crypto :  102  
+nano   :12698  
+pico   :20860  
+synecho:18146  
+ultra  :20537
+
+2)
+36358 observations in each of the partition
